@@ -1,0 +1,103 @@
+# Démo publique du portail du centre communautaire
+#   https://crm.phrolonyx.com       → frontend (nginx + Angular, relaie /api)
+#   https://crm-mail.phrolonyx.com  → Mailpit (courriels envoyés par la démo)
+#
+# Code source : https://github.com/phrolonyx/community-center-portal
+# Les images sont construites sur une autre machine et publiées sur GHCR :
+# ce serveur ne compile rien.
+#
+# Démarrage : docker compose up -d   (le stack Caddy doit déjà tourner,
+# c'est lui qui crée le réseau "web")
+
+name: crm
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    mem_limit: 256m
+    command: >-
+      --performance-schema=OFF
+      --innodb-buffer-pool-size=32M
+      --innodb-log-buffer-size=8M
+      --max-connections=20
+      --table-open-cache=200
+      --tmp-table-size=8M --max-heap-table-size=8M
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Définir DB_ROOT_PASSWORD dans .env}
+      MYSQL_DATABASE: manara_db
+      MYSQL_USER: manara
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Définir DB_PASSWORD dans .env}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Réseau interne seulement : jamais joignable par Caddy ni par Internet
+
+  # Faux serveur SMTP : rien ne quitte le serveur.
+  # Seule l'interface web (8025) est exposée, via Caddy ;
+  # le port SMTP (1025) reste accessible uniquement au backend.
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    mem_limit: 48m
+    environment:
+      MP_MAX_MESSAGES: "100"   # les plus anciens sont supprimés au-delà
+    networks:
+      default:
+      web:
+        aliases: [crm-mailpit]
+
+  backend:
+    image: ghcr.io/phrolonyx/community-center-portal-backend:latest
+    restart: unless-stopped
+    mem_limit: 350m
+    environment:
+      DB_URL: jdbc:mysql://db:3306/manara_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: manara
+      DB_PASSWORD: ${DB_PASSWORD:?Définir DB_PASSWORD dans .env}
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_AUTH: "false"
+      MAIL_STARTTLS: "false"
+      MAIL_USERNAME: noreply@centre-communautaire.local
+      SPRING_JPA_SHOW_SQL: "false"
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k
+        -XX:TieredStopAtLevel=1 -XX:ReservedCodeCacheSize=48m
+        -XX:MaxMetaspaceSize=128m
+      SERVER_TOMCAT_THREADS_MAX: "20"
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    # Réseau interne seulement : on y accède par le frontend (/api)
+
+  frontend:
+    image: ghcr.io/phrolonyx/community-center-portal-frontend:latest
+    restart: unless-stopped
+    mem_limit: 48m
+    depends_on:
+      - backend
+    networks:
+      default:
+      web:
+        aliases: [crm-frontend]
+
+# Aucun "ports:" : seul Caddy publie 80/443.
+# Les alias crm-frontend / crm-mailpit évitent les conflits de noms
+# avec les services des autres applications sur le réseau "web".
+networks:
+  web:
+    external: true
+
+volumes:
+  db-data:
+  uploads:
