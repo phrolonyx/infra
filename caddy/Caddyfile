@@ -11,3 +11,12 @@ phrolonyx.com {
 www.phrolonyx.com {
 	redir https://phrolonyx.com{uri} permanent
 }
+
+crm.phrolonyx.com {
+	encode zstd gzip
+	reverse_proxy crm-frontend:80
+}
+
+crm-mail.phrolonyx.com {
+	reverse_proxy crm-mailpit:8025
+}
