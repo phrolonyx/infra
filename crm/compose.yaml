@@ -71,6 +71,7 @@ services:
         -XX:MaxMetaspaceSize=128m
       SERVER_TOMCAT_THREADS_MAX: "20"
       SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
+      SERVER_FORWARD_HEADERS_STRATEGY: native
     volumes:
       - uploads:/app/uploads
     depends_on:
