@@ -1,0 +1,11 @@
+[Unit]
+Description=Remise à zéro quotidienne de la démo CRM
+
+[Timer]
+# Chaque nuit à 4 h, heure de Montréal (le serveur est en UTC)
+OnCalendar=*-*-* 04:00:00 America/Toronto
+# Si le serveur était éteint à 4 h, ne pas rattraper : la démo n'est pas critique
+Persistent=false
+
+[Install]
+WantedBy=timers.target

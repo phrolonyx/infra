@@ -1,0 +1,21 @@
+# Remet la démo du CRM à son état initial :
+# supprime la base et les téléversements, puis redémarre le stack.
+# Au démarrage, le backend recrée le schéma et recharge les données de démo ;
+# Mailpit, sans volume, repart vide.
+#
+# Installation (sur le serveur) :
+#   sudo cp /srv/infra/crm/systemd/crm-reset.* /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now crm-reset.timer
+
+[Unit]
+Description=Remise à zéro de la démo CRM (crm.phrolonyx.com)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=jp
+WorkingDirectory=/srv/infra/crm
+ExecStart=/usr/bin/docker compose down --volumes
+ExecStart=/usr/bin/docker compose up -d
