@@ -1,0 +1,13 @@
+{
+	email jean-philippe.racine@phrolonyx.com
+}
+
+phrolonyx.com {
+	root * /srv/site
+	encode zstd gzip
+	file_server
+}
+
+www.phrolonyx.com {
+	redir https://phrolonyx.com{uri} permanent
+}

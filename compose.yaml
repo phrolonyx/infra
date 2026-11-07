@@ -1,0 +1,25 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - ./site:/srv/site:ro
+      - caddy_data:/data       # certificats : ne jamais supprimer
+      - caddy_config:/config
+    networks:
+      - web
+    mem_limit: 128m
+
+networks:
+  web:
+    name: web   # les futures apps rejoindront ce réseau
+
+volumes:
+  caddy_data:
+  caddy_config:
